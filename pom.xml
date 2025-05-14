@@ -37,6 +37,13 @@
             <version>1.12.472</version>
         </dependency>
         
+        <!-- Apache HTTP Client (needed for URI utilities) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
+        </dependency>
+        
         <!-- Jedis - Redis Java Client -->
         <dependency>
             <groupId>redis.clients</groupId>
