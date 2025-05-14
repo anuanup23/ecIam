@@ -1,3 +1,2 @@
-com/example/ec/ECServerlessExample.class
 com/example/ec/ElastiCacheIamAuthenticator.class
-com/example/ec/ElastiCacheIamAuthenticator$SigV4Request.class
+com/example/ec/ECServerlessExample.class

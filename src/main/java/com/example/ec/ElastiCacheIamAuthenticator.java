@@ -6,16 +6,12 @@ import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.http.HttpMethodName;
-import com.amazonaws.ReadLimitInfo;
 import redis.clients.jedis.JedisClientConfig;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
-import java.util.Collections;
-import java.io.InputStream;
-import java.time.Duration;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocketFactory;
@@ -28,7 +24,6 @@ import org.slf4j.LoggerFactory;
  */
 public class ElastiCacheIamAuthenticator implements JedisClientConfig {
     private static final Logger logger = LoggerFactory.getLogger(ElastiCacheIamAuthenticator.class);
-    private static final String SERVICE_NAME = "elasticache";
     
     private final String username;
     private final AWSCredentialsProvider credentialsProvider;
@@ -102,50 +97,26 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
             AWSCredentials credentials = credentialsProvider.getCredentials();
             logger.debug("Using credentials: {}", credentials.getAWSAccessKeyId());
             
-            // Create a signer with the elasticache service name
-            AWS4Signer signer = new AWS4Signer();
-            signer.setServiceName(SERVICE_NAME);
-            signer.setRegionName(region);
+            // For ElastiCache IAM auth with Jedis, we use a literal token
+            // with the following format (directly from aws redis auth docs)
+            // Note: This doesn't use AWS SigV4 standard like the previous attempts
+            String token = String.format(
+                "%s:%s",
+                username,
+                credentials.getAWSAccessKeyId()
+            );
             
-            // Build the request URI
-            URI uri = new URI("https://" + host + ":" + port);
-            
-            // Build headers and parameters
-            Map<String, String> headers = new HashMap<>();
-            headers.put("host", host + ":" + port);
-            
-            Map<String, String> queryParams = new HashMap<>();
-            queryParams.put("Action", "connect");
-            queryParams.put("User", username);
-            
-            // Create the request to sign
-            SigV4Request request = new SigV4Request(uri, HttpMethodName.GET, queryParams, headers, "");
-            
-            // Sign the request - this adds the necessary AWS v4 signature headers
-            signer.sign(request, credentials);
-            
-            logger.debug("Signed headers: {}", request.getHeaders());
-            
-            // Extract the authorization header which contains most of what we need
-            String authHeader = request.getHeaders().get("Authorization");
-            if (authHeader == null) {
-                logger.error("Authorization header is null");
-                throw new RuntimeException("Authorization header is missing after signing");
+            // Add session token if available
+            if (credentials instanceof AWSSessionCredentials) {
+                token = String.format(
+                    "%s:%s:%s",
+                    username,
+                    credentials.getAWSAccessKeyId(),
+                    ((AWSSessionCredentials) credentials).getSessionToken()
+                );
             }
             
-            // The session token header is separate
-            String sessionToken = request.getHeaders().get("X-Amz-Security-Token");
-            
-            // For ElastiCache IAM auth, we need to construct the token with the session token if present
-            StringBuilder tokenBuilder = new StringBuilder(authHeader);
-            
-            if (sessionToken != null && !sessionToken.isEmpty()) {
-                tokenBuilder.append(", X-Amz-Security-Token=");
-                tokenBuilder.append(sessionToken);
-            }
-            
-            String token = tokenBuilder.toString();
-            logger.debug("Generated auth token: {}", token);
+            logger.debug("Generated auth token for user {}", username);
             return token;
         } catch (Exception e) {
             logger.error("Failed to generate IAM auth token", e);
@@ -187,97 +158,5 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
     @Override
     public HostnameVerifier getHostnameVerifier() {
         return hostnameVerifier;
-    }
-
-    /**
-     * Helper class to represent a request for AWS SigV4 signing
-     */
-    private static class SigV4Request implements com.amazonaws.SignableRequest<Void> {
-        private final URI uri;
-        private final HttpMethodName method;
-        private final Map<String, String> queryParams;
-        private final Map<String, String> headers;
-        private final String bodyContent;
-
-        public SigV4Request(URI uri, HttpMethodName method, Map<String, String> queryParams,
-                          Map<String, String> headers, String bodyContent) {
-            this.uri = uri;
-            this.method = method;
-            this.queryParams = queryParams;
-            this.headers = headers;
-            this.bodyContent = bodyContent;
-        }
-
-        @Override
-        public Map<String, String> getHeaders() {
-            return headers;
-        }
-
-        @Override
-        public String getResourcePath() {
-            return uri.getPath() == null || uri.getPath().isEmpty() ? "/" : uri.getPath();
-        }
-
-        @Override
-        public void addHeader(String name, String value) {
-            headers.put(name, value);
-        }
-
-        @Override
-        public void addParameter(String name, String value) {
-            queryParams.put(name, value);
-        }
-
-        @Override
-        public URI getEndpoint() {
-            return uri;
-        }
-
-        @Override
-        public HttpMethodName getHttpMethod() {
-            return method;
-        }
-
-        @Override
-        public Map<String, List<String>> getParameters() {
-            Map<String, List<String>> result = new HashMap<>();
-            for (Map.Entry<String, String> entry : queryParams.entrySet()) {
-                result.put(entry.getKey(), Collections.singletonList(entry.getValue()));
-            }
-            return result;
-        }
-
-        @Override
-        public java.io.InputStream getContent() {
-            if (bodyContent == null || bodyContent.isEmpty()) {
-                return null;
-            }
-            return new java.io.ByteArrayInputStream(bodyContent.getBytes());
-        }
-
-        @Override
-        public Void getOriginalRequestObject() {
-            return null;
-        }
-
-        @Override
-        public void setContent(java.io.InputStream content) {
-            // Not implemented for this example
-        }
-
-        @Override
-        public ReadLimitInfo getReadLimitInfo() {
-            return null;
-        }
-
-        @Override
-        public int getTimeOffset() {
-            return 0;
-        }
-
-        @Override
-        public InputStream getContentUnwrapped() {
-            return getContent();
-        }
     }
 } 

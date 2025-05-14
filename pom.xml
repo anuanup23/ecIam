@@ -30,6 +30,13 @@
             <version>1.12.472</version>
         </dependency>
         
+        <!-- AWS SDK v1 for ElastiCache -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-elasticache</artifactId>
+            <version>1.12.472</version>
+        </dependency>
+        
         <!-- Jedis - Redis Java Client -->
         <dependency>
             <groupId>redis.clients</groupId>
