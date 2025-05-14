@@ -18,6 +18,9 @@ public class ECServerlessExample {
     private static final String REGION = "eu-west-1";
     private static final String USERNAME = "iam-user";
     
+    // Specific endpoint for the cache
+    private static final String DEFAULT_ENDPOINT = "cache-01-vk-yiy6se.serverless.euw1.cache.amazonaws.com";
+    
     // These can be overridden by command-line arguments or environment variables
     private static String elastiCacheEndpoint;
     private static int elastiCachePort = 6379;
@@ -66,8 +69,8 @@ public class ECServerlessExample {
             }
             
             if (elastiCacheEndpoint == null || elastiCacheEndpoint.isEmpty()) {
-                // Use default endpoint format for the cache name and region if not provided
-                elastiCacheEndpoint = CACHE_NAME + ".serverless." + REGION + ".cache.amazonaws.com";
+                // Use the specific endpoint provided
+                elastiCacheEndpoint = DEFAULT_ENDPOINT;
                 logger.info("Using default ElastiCache endpoint: {}", elastiCacheEndpoint);
             }
         } else {
@@ -86,6 +89,6 @@ public class ECServerlessExample {
     private static void printUsage() {
         logger.info("Usage: java -jar ec-serverless-iam-example.jar <elasticache-endpoint> [port]");
         logger.info("  or set environment variables ELASTICACHE_ENDPOINT and optionally ELASTICACHE_PORT");
-        logger.info("  Default endpoint: " + CACHE_NAME + ".serverless." + REGION + ".cache.amazonaws.com");
+        logger.info("  Default endpoint: " + DEFAULT_ENDPOINT);
     }
 } 

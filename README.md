@@ -16,7 +16,8 @@ This Maven project demonstrates how to connect to Amazon ElastiCache Serverless 
 This example is configured for:
 - Cache name: cache-01-vk
 - Region: eu-west-1
-- Default endpoint: cache-01-vk.serverless.eu-west-1.cache.amazonaws.com
+- Default endpoint: cache-01-vk-yiy6se.serverless.euw1.cache.amazonaws.com
+- Port: 6379
 
 If your cache has a different endpoint, you can provide it as a command-line argument or environment variable.
 
