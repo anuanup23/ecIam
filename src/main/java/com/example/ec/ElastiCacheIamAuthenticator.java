@@ -126,47 +126,27 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
             
             logger.debug("Signed headers: {}", request.getHeaders());
             
-            // Convert the query parameters to the required format for ElastiCache auth
-            StringBuilder tokenBuilder = new StringBuilder();
-            
-            // Add X-Amz-Algorithm
-            tokenBuilder.append(request.getHeaders().get("X-Amz-Algorithm"));
-            
-            // Add Credentials
-            tokenBuilder.append(" Credential=");
-            tokenBuilder.append(credentials.getAWSAccessKeyId());
-            tokenBuilder.append("/");
-            
-            // Extract credential scope from X-Amz-Credential header
-            String amzCredential = request.getHeaders().get("X-Amz-Credential");
-            if (amzCredential != null) {
-                String[] parts = amzCredential.split("/");
-                if (parts.length > 1) {
-                    for (int i = 1; i < parts.length; i++) {
-                        tokenBuilder.append(parts[i]);
-                        if (i < parts.length - 1) {
-                            tokenBuilder.append("/");
-                        }
-                    }
-                }
+            // Extract the authorization header which contains most of what we need
+            String authHeader = request.getHeaders().get("Authorization");
+            if (authHeader == null) {
+                logger.error("Authorization header is null");
+                throw new RuntimeException("Authorization header is missing after signing");
             }
             
-            // Add SignedHeaders
-            tokenBuilder.append(", SignedHeaders=");
-            tokenBuilder.append(request.getHeaders().get("X-Amz-SignedHeaders"));
+            // The session token header is separate
+            String sessionToken = request.getHeaders().get("X-Amz-Security-Token");
             
-            // Add Signature
-            tokenBuilder.append(", Signature=");
-            tokenBuilder.append(request.getHeaders().get("X-Amz-Signature"));
+            // For ElastiCache IAM auth, we need to construct the token with the session token if present
+            StringBuilder tokenBuilder = new StringBuilder(authHeader);
             
-            // Add session token if credentials are session credentials
-            if (credentials instanceof AWSSessionCredentials) {
+            if (sessionToken != null && !sessionToken.isEmpty()) {
                 tokenBuilder.append(", X-Amz-Security-Token=");
-                tokenBuilder.append(((AWSSessionCredentials) credentials).getSessionToken());
+                tokenBuilder.append(sessionToken);
             }
             
-            logger.debug("Generated auth token: {}", tokenBuilder.toString());
-            return tokenBuilder.toString();
+            String token = tokenBuilder.toString();
+            logger.debug("Generated auth token: {}", token);
+            return token;
         } catch (Exception e) {
             logger.error("Failed to generate IAM auth token", e);
             throw new RuntimeException("Failed to generate IAM auth token", e);
