@@ -16,7 +16,7 @@ public class ECServerlessExample {
     // ElastiCache Serverless configuration
     private static final String CACHE_NAME = "cache-01-vk";
     private static final String REGION = "eu-west-1";
-    private static final String USERNAME = "iam-user";
+    private static final String USERNAME = "iam-user-01";
     
     // Specific endpoint for the cache
     private static final String DEFAULT_ENDPOINT = "cache-01-vk-yiy6se.serverless.euw1.cache.amazonaws.com";

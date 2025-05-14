@@ -18,6 +18,7 @@ This example is configured for:
 - Region: eu-west-1
 - Default endpoint: cache-01-vk-yiy6se.serverless.euw1.cache.amazonaws.com
 - Port: 6379
+- IAM Username: iam-user-01
 
 If your cache has a different endpoint, you can provide it as a command-line argument or environment variable.
 
