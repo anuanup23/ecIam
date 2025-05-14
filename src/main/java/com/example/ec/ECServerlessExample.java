@@ -32,6 +32,7 @@ public class ECServerlessExample {
         logger.info("Connecting to ElastiCache Serverless at {}:{}", elastiCacheEndpoint, elastiCachePort);
         logger.info("Using IAM user: {}", USERNAME);
         logger.info("Using region: {}", REGION);
+        logger.info("NOTE: ElastiCache can only be accessed from within AWS VPC or through a VPC peering connection");
         
         try {
             // Check AWS credentials
@@ -52,7 +53,7 @@ public class ECServerlessExample {
                     USERNAME, REGION, elastiCacheEndpoint, elastiCachePort);
             
             // Connect to ElastiCache Serverless
-            logger.info("Attempting connection...");
+            logger.info("Attempting connection with SSL enabled: {}", authenticator.isSsl());
             try (Jedis jedis = new Jedis(elastiCacheEndpoint, elastiCachePort, authenticator)) {
                 // Set key-value pair "test" -> "test"
                 logger.info("Setting key 'test' to value 'test'...");

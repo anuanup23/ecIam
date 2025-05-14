@@ -71,8 +71,8 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
     public ElastiCacheIamAuthenticator(String userId, String region, String host, int port) {
         this(userId, region, host, port, 
              DefaultAWSCredentialsProviderChain.getInstance(),
-             Duration.ofSeconds(2), 
-             Duration.ofSeconds(2),
+             Duration.ofSeconds(10), 
+             Duration.ofSeconds(10),
              true, null, null, null);
     }
 
@@ -108,17 +108,25 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
         this.sslSocketFactory = sslSocketFactory;
         this.sslParameters = sslParameters;
         
+        // Log the host for debugging
+        logger.info("Extracting cache name from host: {}", host);
+        
         // Extract the cache name from the host name
         // For serverless caches, the cacheName is the first part of the host
         // e.g. cache-01-vk-yiy6se.serverless.euw1.cache.amazonaws.com -> cache-01-vk
         String[] parts = host.split("-");
+        String extractedCacheName = null;
         if (parts.length >= 3) {
             // Find the cache name format like "cache-01-vk"
-            this.cacheName = parts[0] + "-" + parts[1] + "-" + parts[2].split("\\.")[0];
+            extractedCacheName = parts[0] + "-" + parts[1] + "-" + parts[2].split("\\.")[0];
         } else {
             // Fallback to first part of host if unable to parse
-            this.cacheName = host.split("\\.")[0];
+            extractedCacheName = host.split("\\.")[0];
         }
+        
+        // Log the extracted cache name
+        logger.info("Extracted cache name: {}", extractedCacheName);
+        this.cacheName = extractedCacheName;
         
         // Determine if this is a serverless cache by looking at the endpoint
         this.isServerless = host.contains("serverless.");
@@ -144,7 +152,9 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
             
             // Generate a signed request URI (token)
             String iamAuthToken = toSignedRequestUri(credentials);
-            logger.debug("Generated IAM auth token successfully");
+            
+            // Log the full token for debugging
+            logger.info("Generated full IAM auth token: {}", iamAuthToken);
             
             return iamAuthToken;
         } catch (Exception e) {
