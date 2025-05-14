@@ -9,7 +9,7 @@ This Maven project demonstrates how to connect to Amazon ElastiCache Serverless 
 3. AWS credentials configured (via environment variables, AWS profile, EC2 instance profile, etc.)
 4. An ElastiCache Serverless cluster with IAM authentication enabled
 5. IAM policy that allows connecting to ElastiCache
-6. Network connectivity to ElastiCache (typically by running from an EC2 instance in the same VPC or through VPN)
+6. **Network connectivity to ElastiCache** (critical - see Deployment section below)
 
 ## Configuration
 
@@ -30,19 +30,43 @@ mvn clean package
 
 This will create a JAR file in the `target` directory named `ec-serverless-iam-example-1.0-SNAPSHOT-jar-with-dependencies.jar`.
 
+## Deployment
+
+### Important: Network Connectivity Requirements
+
+ElastiCache instances are **not directly accessible from the public internet**. You must deploy this application in an environment that has network connectivity to your ElastiCache cluster.
+
+**Valid deployment options:**
+
+1. **EC2 instance in the same VPC** as your ElastiCache cluster
+2. EC2 instance in a VPC with VPC peering to the ElastiCache VPC
+3. On-premises server connected via AWS Direct Connect or VPN
+4. AWS Lambda function in the same VPC as ElastiCache
+
+**Testing locally:** If you want to test from your local machine, you would need to:
+1. Set up an AWS VPN connection
+2. Configure SSH tunneling through a bastion host in the VPC
+3. Use AWS Cloud9 IDE which runs in the AWS environment
+
 ## Running the Example
 
-You can run the example by providing the ElastiCache endpoint as a command-line argument:
+Once deployed to an environment with proper network connectivity:
+
+```bash
+java -jar target/ec-serverless-iam-example-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+Alternatively, you can specify a custom endpoint and port:
 
 ```bash
 java -jar target/ec-serverless-iam-example-1.0-SNAPSHOT-jar-with-dependencies.jar <your-elasticache-endpoint> [port]
 ```
 
-Alternatively, you can set environment variables:
+Or use environment variables:
 
 ```bash
 export ELASTICACHE_ENDPOINT=your-elasticache-endpoint
-export ELASTICACHE_PORT=6379  # Optional, defaults to 6379
+export ELASTICACHE_PORT=6379
 
 java -jar target/ec-serverless-iam-example-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
@@ -82,8 +106,10 @@ Replace `account-id` with your AWS account ID.
 
 If you encounter issues:
 
-1. Ensure your AWS credentials are properly configured and have the necessary permissions
-2. Verify the ElastiCache endpoint is correct
-3. Check that your ElastiCache Serverless cluster has IAM authentication enabled
-4. Ensure your security groups allow connections to the ElastiCache cluster
-5. Make sure you're running this from an environment that has network connectivity to ElastiCache (EC2 instance in the same VPC, VPN connection, etc.) 
+1. **Connection timeouts**: This typically means you don't have network connectivity to ElastiCache. Make sure you're running the application from an environment that has access to the ElastiCache VPC.
+
+2. **Authentication errors**: Check the IAM permissions and ensure the user has the proper policy attached. Verify the username matches what's configured in ElastiCache.
+
+3. **DNS resolution issues**: Make sure you're using the correct endpoint for your ElastiCache instance.
+
+4. **SSL/TLS errors**: ElastiCache requires SSL. The client is configured to use SSL by default. 

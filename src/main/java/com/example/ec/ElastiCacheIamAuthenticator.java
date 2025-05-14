@@ -4,6 +4,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.http.HttpMethodName;
 import com.amazonaws.ReadLimitInfo;
 import redis.clients.jedis.JedisClientConfig;
@@ -97,12 +98,19 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
      */
     public String getPassword() {
         try {
+            // Get the credentials
+            AWSCredentials credentials = credentialsProvider.getCredentials();
+            logger.debug("Using credentials: {}", credentials.getAWSAccessKeyId());
+            
+            // Create a signer with the elasticache service name
             AWS4Signer signer = new AWS4Signer();
             signer.setServiceName(SERVICE_NAME);
             signer.setRegionName(region);
             
+            // Build the request URI
             URI uri = new URI("https://" + host + ":" + port);
             
+            // Build headers and parameters
             Map<String, String> headers = new HashMap<>();
             headers.put("host", host + ":" + port);
             
@@ -110,17 +118,54 @@ public class ElastiCacheIamAuthenticator implements JedisClientConfig {
             queryParams.put("Action", "connect");
             queryParams.put("User", username);
             
+            // Create the request to sign
             SigV4Request request = new SigV4Request(uri, HttpMethodName.GET, queryParams, headers, "");
-            signer.sign(request, credentialsProvider.getCredentials());
             
+            // Sign the request - this adds the necessary AWS v4 signature headers
+            signer.sign(request, credentials);
+            
+            logger.debug("Signed headers: {}", request.getHeaders());
+            
+            // Convert the query parameters to the required format for ElastiCache auth
             StringBuilder tokenBuilder = new StringBuilder();
-            for (Map.Entry<String, String> param : queryParams.entrySet()) {
-                if (tokenBuilder.length() > 0) {
-                    tokenBuilder.append("&");
+            
+            // Add X-Amz-Algorithm
+            tokenBuilder.append(request.getHeaders().get("X-Amz-Algorithm"));
+            
+            // Add Credentials
+            tokenBuilder.append(" Credential=");
+            tokenBuilder.append(credentials.getAWSAccessKeyId());
+            tokenBuilder.append("/");
+            
+            // Extract credential scope from X-Amz-Credential header
+            String amzCredential = request.getHeaders().get("X-Amz-Credential");
+            if (amzCredential != null) {
+                String[] parts = amzCredential.split("/");
+                if (parts.length > 1) {
+                    for (int i = 1; i < parts.length; i++) {
+                        tokenBuilder.append(parts[i]);
+                        if (i < parts.length - 1) {
+                            tokenBuilder.append("/");
+                        }
+                    }
                 }
-                tokenBuilder.append(param.getKey()).append("=").append(param.getValue());
             }
             
+            // Add SignedHeaders
+            tokenBuilder.append(", SignedHeaders=");
+            tokenBuilder.append(request.getHeaders().get("X-Amz-SignedHeaders"));
+            
+            // Add Signature
+            tokenBuilder.append(", Signature=");
+            tokenBuilder.append(request.getHeaders().get("X-Amz-Signature"));
+            
+            // Add session token if credentials are session credentials
+            if (credentials instanceof AWSSessionCredentials) {
+                tokenBuilder.append(", X-Amz-Security-Token=");
+                tokenBuilder.append(((AWSSessionCredentials) credentials).getSessionToken());
+            }
+            
+            logger.debug("Generated auth token: {}", tokenBuilder.toString());
             return tokenBuilder.toString();
         } catch (Exception e) {
             logger.error("Failed to generate IAM auth token", e);

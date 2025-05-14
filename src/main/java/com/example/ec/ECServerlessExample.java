@@ -30,19 +30,37 @@ public class ECServerlessExample {
         parseArgs(args);
         
         logger.info("Connecting to ElastiCache Serverless at {}:{}", elastiCacheEndpoint, elastiCachePort);
+        logger.info("Using IAM user: {}", USERNAME);
+        logger.info("Using region: {}", REGION);
         
         try {
+            // Check AWS credentials
+            logger.info("Checking AWS credentials...");
+            try {
+                com.amazonaws.auth.DefaultAWSCredentialsProviderChain credentialsProvider = 
+                    com.amazonaws.auth.DefaultAWSCredentialsProviderChain.getInstance();
+                com.amazonaws.auth.AWSCredentials credentials = credentialsProvider.getCredentials();
+                logger.info("AWS credentials found for access key ID: {}", 
+                    credentials.getAWSAccessKeyId().substring(0, 5) + "...");
+            } catch (Exception e) {
+                logger.error("Error retrieving AWS credentials", e);
+            }
+            
             // Create IAM authenticator for ElastiCache
+            logger.info("Creating IAM authenticator...");
             ElastiCacheIamAuthenticator authenticator = new ElastiCacheIamAuthenticator(
                     USERNAME, REGION, elastiCacheEndpoint, elastiCachePort);
             
             // Connect to ElastiCache Serverless
+            logger.info("Attempting connection...");
             try (Jedis jedis = new Jedis(elastiCacheEndpoint, elastiCachePort, authenticator)) {
                 // Set key-value pair "test" -> "test"
+                logger.info("Setting key 'test' to value 'test'...");
                 String result = jedis.set("test", "test");
                 logger.info("Set key 'test' with value 'test'. Result: {}", result);
                 
                 // Verify the value was set correctly
+                logger.info("Retrieving key 'test'...");
                 String value = jedis.get("test");
                 logger.info("Retrieved value for key 'test': {}", value);
             }
@@ -50,6 +68,7 @@ public class ECServerlessExample {
             logger.info("Example completed successfully");
         } catch (Exception e) {
             logger.error("Error connecting to ElastiCache or performing operations", e);
+            e.printStackTrace();
             System.exit(1);
         }
     }
